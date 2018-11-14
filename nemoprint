@@ -1,0 +1,102 @@
+#! /usr/bin/env bash
+
+. "$HOME/.config/nemoprint/rc.d"/*
+
+canonical_line_filter() {
+  local line=$1
+  # TODO: parse line, normalize whitespace,
+  # filter comments
+  echo $line
+}
+
+sha256 () {
+  sha256sum "$@" | cut -b-64 # | tr [a-f] [A-F]
+}
+
+dos_shortname () {
+  # NOTE: we presume we have no collisions in the first three bytes
+  echo "$(sha256 $1 | cut -b-6)~1.gco"
+}
+
+check_file_exists () {
+  curl -fsX HEAD "$SDCARD_ADDRESS/$(sha256 $1).gcode"
+}
+
+upload_file () {
+  curl -T $1 "$SDCARD_ADDRESS/$(sha256 $1).tmp" >/dev/null
+  curl -H "Destination: $SDCARD_ADDRESS/$(sha256 $1).gcode" -X MOVE "$SDCARD_ADDRESS/$(sha256 $1).tmp"
+}
+
+octoprint_post_json () {
+  curl -H "X-Api-Key: $OCTOPRINT_API_KEY" \
+    -X POST "$OCTOPRINT_ADDRESS$1" \
+    -H "Content-Type: application/json" -d "$2"
+}
+
+octoprint_refresh_sdcard () {
+  octoprint_post_json /api/printer/sd '{"command":"refresh"}'
+}
+
+select_and_print_sdcard_file () {
+  octoprint_refresh_sdcard
+  octoprint_post_json "/api/files/sdcard/$(dos_shortname $1)" \
+    '{"command":"select","print":true}'
+}
+
+raw_gcode_select_and_print_sdcard_file () {
+  octoprint_post_json "/api/printer/command" \
+    '{"command":"M32 '"$(dos_shortname $1)"'"}'
+}
+
+case $1 in
+  preheat)
+    # preheats for given gcode file, or material/temperatures if specified in options
+    # --off sets all temperatures to 0
+  ;;
+  upload)
+  # optionally preprocesses the file into its canonical form and uploads either
+  # both (if both are not present) or just the canonical one
+  # --force ignores presence checks
+  ;;
+  check)
+    # --full downloads a file and makes sure it has the same hash
+    # --exist just does an HTTP 200 HEAD check
+    # --size would probably be the best compormise, but I think it requires
+    # a bit too much WebDAV fanciness to request
+    # maybe once that's implemented, it can be the default, and until then,
+    # there's no default
+    # maybe we can largely obviate the need for this by uploading to the
+    # object name ".tmp" (or a tmp prefix or something), and then move it
+    # when it's done, so that way interrupted transfers are distinguished
+    # by incomplete filenames
+    # maybe it can be like git headers, where the final filename is
+    # "blob_{size}_{hash}", and the intermediate version is "tmp_{hash}"
+  ;;
+  print)
+    # if file hasn't been uploaded (TODO: canonical or input)
+    if ! check_file_exists "$2"; then
+      # TODO: start preheating
+      # start the upload of the (TODO: canonical) gcode
+      upload_file "$2"
+    fi
+    # issue the command to OctoPrint to print that file
+    # select_and_print_sdcard_file "$2" # is liable to stop us, so we do
+    raw_gcode_select_and_print_sdcard_file "$2" # instead
+    # (TODO: uploads the source, if requested, with trailing "; canonical-sha256: " comment)
+  ;;
+  status)
+
+  ;;
+  stop|cancel)
+    # stops
+  ;;
+  cleanup)
+    # deletes files
+    # maybe takes a list of files to hold on stdin
+  ;;
+  help|*)
+    echo <<EOM
+usage:
+EOM
+  ;;
+esac
