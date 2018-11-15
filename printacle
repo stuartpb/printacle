@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-. "$HOME"/.config/nemoprint/rc.d/*
+. "$HOME"/.config/printacle/rc.d/*
 
 canonical_line_filter() {
   local line=$1
@@ -63,12 +63,12 @@ is_falsy () {
   esac
 }
 
-nemoprint_print_file () {
+printacle_print_file () {
   # if file hasn't been uploaded (TODO: canonical or input)
   if ! check_file_exists "$1"; then
     # start preheating
-    if ! is_falsy "$NEMOPRINT_PREHEAT_UPLOAD_BEFORE_PRINT"; then
-      nemoprint_preheat_file "$1"
+    if ! is_falsy "$PRINTACLE_PREHEAT_UPLOAD_BEFORE_PRINT"; then
+      printacle_preheat_file "$1"
     fi
     # start the upload of the (TODO: canonical) gcode
     upload_file "$1"
@@ -87,7 +87,7 @@ send_first_gcode () {
   fi
 }
 
-nemoprint_preheat_file () {
+printacle_preheat_file () {
   send_first_gcode "$1" M104
   send_first_gcode "$1" M140
 }
@@ -95,7 +95,7 @@ nemoprint_preheat_file () {
 case $1 in
   preheat)
     # preheats for given gcode file
-    nemoprint_preheat_file "$2"
+    printacle_preheat_file "$2"
     # TODO: material/temperatures if specified in options
     # off sets all temperatures to 0
   ;;
@@ -114,14 +114,14 @@ case $1 in
   ;;
   print)
     # TODO: parse --hash to allow for printing without specifying a file
-    nemoprint_print_file "$2"
+    printacle_print_file "$2"
   ;;
   command)
     send_gcode_to_printer "$2"
   ;;
   config)
     if [[ $2 == "init" ]]
-    then mkdir -p "$HOME/.config/nemoprint/rc.d"
+    then mkdir -p "$HOME/.config/printacle/rc.d"
     else
       echo "config only supports 'init' as an option right now" >&2
       exit 1
@@ -140,10 +140,10 @@ case $1 in
   help|*)
     echo <<EOM
 usage:
-  nemoprint print <filename>
-  nemoprint preheat <filename>
-  nemoprint command <gcode>
-  nemoprint config init
+  printacle print <filename>
+  printacle preheat <filename>
+  printacle command <gcode>
+  printacle config init
 EOM
   ;;
 esac
