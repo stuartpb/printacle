@@ -100,9 +100,11 @@ case $1 in
     # off sets all temperatures to 0
   ;;
   upload)
-  # optionally preprocesses the file into its canonical form and uploads either
-  # both (if both are not present) or just the canonical one
-  # --force ignores presence checks
+    # optionally preprocesses the file into its canonical form and uploads either
+    # both (if both are not present) or just the canonical one
+    # --force ignores presence checks
+    # TODO: check for presence
+    upload_file "$1"
   ;;
   check)
     # --full downloads a file and makes sure it has the same hash
@@ -140,10 +142,18 @@ case $1 in
   help|*)
     echo <<EOM
 usage:
-  printacle print <filename>
-  printacle preheat <filename>
-  printacle command <gcode>
-  printacle config init
+  coordinated commands:
+    printacle print <filename>
+
+  printer control commands:
+    printacle preheat <filename>
+    printacle command <gcode>
+
+  file storage commands:
+    printacle upload <filename>
+
+  configuration commands:
+    printacle config init
 EOM
   ;;
 esac
